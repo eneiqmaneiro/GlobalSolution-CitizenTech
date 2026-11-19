@@ -1,6 +1,6 @@
 # EcoSmart — Front-end
 
-> Global Solution 2 - 2026 · CitizenTech · Front-End Design Engineering
+> Global Solution 2 - 2026 · CitizenTech · Front-End 
 
 ## Objetivo
 
