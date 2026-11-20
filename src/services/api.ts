@@ -1,7 +1,17 @@
 // Camada única de comunicação com a API (fetch nativo, sem bibliotecas externas)
 // Se a variável VITE_API_URL não estiver definida (ex.: deploy sem .env), usa a API publicada no Render
 const API_PADRAO = "https://citizentech-jtvb.onrender.com";
-const API_URL = ((import.meta.env.VITE_API_URL as string | undefined) || API_PADRAO).replace(/\/$/, "");
+// Só aceita a variável se for uma URL completa (https://...). Valor vazio ou digitado errado na Vercel
+// faria o fetch chamar o próprio site e receber HTML, então nesses casos usa a API do Render.
+const URL_ENV = ((import.meta.env.VITE_API_URL as string | undefined) ?? "").trim().replace(/^["']|["']$/g, "");
+const API_URL = (/^https?:\/\//.test(URL_ENV) ? URL_ENV : API_PADRAO).replace(/\/$/, "");
+
+const MSG_API_ACORDANDO =
+  "A API está iniciando (o servidor gratuito do Render demora cerca de 1 minuto para acordar). Aguarde e clique em Atualizar.";
+const TENTATIVAS = 6; // quantas vezes tenta de novo enquanto a API acorda
+const ESPERA_MS = 8000; // espera entre as tentativas
+
+const esperar = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 export class ErroApi extends Error {
   status: number;
@@ -46,16 +56,34 @@ async function requisicao<T>(caminho: string, opcoes: RequestInit = {}): Promise
     } catch {
       // corpo vazio ou não-JSON: usa a mensagem padrão
     }
+    if (resposta.status === 503) throw new ErroApi(MSG_API_ACORDANDO, 503);
     throw new ErroApi(detalhe || `Erro ${resposta.status} ao acessar a API.`, resposta.status);
   }
 
   // 204 No Content ou corpo vazio (comum em DELETE/PUT)
   const texto = await resposta.text();
-  return (texto ? JSON.parse(texto) : undefined) as T;
+  if (!texto) return undefined as T;
+  try {
+    return JSON.parse(texto) as T;
+  } catch {
+    // Resposta em HTML em vez de JSON: é a página de "servidor iniciando" do Render
+    throw new ErroApi(MSG_API_ACORDANDO, 503);
+  }
 }
 
 export const api = {
-  get: <T>(caminho: string) => requisicao<T>(caminho),
+  // GET tenta de novo sozinho enquanto a API do Render está acordando
+  get: async <T>(caminho: string): Promise<T> => {
+    for (let tentativa = 1; ; tentativa++) {
+      try {
+        return await requisicao<T>(caminho);
+      } catch (e) {
+        const acordando = e instanceof ErroApi && e.status === 503;
+        if (!acordando || tentativa >= TENTATIVAS) throw e;
+        await esperar(ESPERA_MS);
+      }
+    }
+  },
   post: <T, B>(caminho: string, corpo: B) =>
     requisicao<T>(caminho, { method: "POST", body: JSON.stringify(corpo) }),
   put: <T, B>(caminho: string, corpo: B) =>
