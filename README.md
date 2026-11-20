@@ -17,7 +17,7 @@ React 19 · TypeScript · Vite · Tailwind CSS v4 · React Router · React Hook 
 | | |
 |---|---|
 | GitHub | https://github.com/eneiqmaneiro/GlobalSolution-CitizenTech |
-| Vercel (front-end) | `COLE_AQUI_A_URL_DA_VERCEL` |
+| Vercel (front-end) | https://global-solution-citizentech.vercel.app/ |
 | API Java (Render) | https://citizentech-jtvb.onrender.com |
 | Vídeo no YouTube (até 3 min) | https://youtu.be/Nzi3WKylvS4 |
 
